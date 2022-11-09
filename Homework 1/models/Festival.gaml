@@ -18,6 +18,7 @@ global{
 	int GuestNumber <- 15;
 	int FoodStoreNumber <- 3;
 	int BeverageStoreNumber <- 3;
+	int distanceThreshold <- 2;
 	
 
 	
@@ -82,16 +83,16 @@ species Guest skills:[moving]{
 		hunger <- hunger-rnd(4);
 		if(target=nil and (thirst < 30 or hunger<30)){
 			if (thirst < 30 and hunger < 30 ){
-			    string agentMessage <- name + " is hungry and thursty";
+			    write name + " is hungry and thursty";
 				needFood <- true;
 				needBeverage <- true;
 				color <- #black;
 			}else if(hunger < 30){
-				string agentMessage <- name + " is hungry";
+				write name + " is hungry";
 				needFood <- true;
 				color <- #green;
 			}else{
-				string agentMessage <- name + " is thirsty";
+				write name + " is thirsty";
 				needBeverage <- true;
 				color <- #blue;
 			}
@@ -110,14 +111,18 @@ species Guest skills:[moving]{
 //		.init.InformationCenter.location;
 	}
 	
-	reflex AskForInformations when: target != nil{
-		if (needFood = true and needBeverage = true){
-			write "Where is a food store and a beverage store ?";
-		}else if(needFood = true){
-			write "Where is a food store ?";
-		}else{
-			write "Where is a beverage store ?";
+//	Asking part for informations
+	reflex AskForInformations when: target != nil and target.location= InformationCenter {
+		ask InformationCenter at_distance distanceThreshold{
+			if (myself.needFood = true and myself.needBeverage = true){
+				write "Where is a food store and a beverage store ?";
+			}else if(myself.needFood ){
+				write "Where is a food store ?";
+			}else{
+				write "Where is a beverage store ?";
+			}			
 		}
+
 	}
 }
 
@@ -127,6 +132,20 @@ species InformationCenter{
 	aspect default{
 		draw cube(7) color: #gold;
 	}
+	
+// Create two lists of Food Stores and Beverage Stores
+   list<FoodStore> FoodSotres <- FoodStore at_distance(100);
+   list<BeverageSore> BeverageSores <- BeverageSore at_distance(100);
+	
+	reflex listStoreLocations{
+		ask FoodSotres{
+			write "Food store at:" + self.location; 
+		}	
+		ask BeverageSores{
+			write "Drink store at:" + self.location; 
+		}
+	}
+	
 }
 
 // Food Store implementation
