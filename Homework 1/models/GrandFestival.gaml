@@ -15,6 +15,7 @@ global{
 	
 	// The Values
 	int InformationCenterNumber <- 1;
+	int SecurityGuardNumber <- 1;
 	int GuestNumber <- 15;
 	int FoodStoreNumber <- 3;
 	int BeverageStoreNumber <- 3;
@@ -34,6 +35,11 @@ global{
 		create InformationCenter number: InformationCenterNumber{
 //		 InformationCenter position on the map
 			location <- {50, 50};		
+		}
+		
+//		The Security Guard 
+		create SecurityGuard number: SecurityGuardNumber{
+			location <- {45, 45};		
 		}
 		
 		// The guests
@@ -68,6 +74,7 @@ species Guest skills:[moving]{
 	float hunger <- rnd(50) + 50.0;
 	bool needFood <- false;
 	bool needBeverage <- false;
+	bool bad <- false;
 //	InformationCenter target <- nil;
 	InformationCenter target;
 	FoodStore FoodSroteTarget;
@@ -95,25 +102,35 @@ species Guest skills:[moving]{
 			    write name + " is hungry and thursty";
 				needFood <- true;
 				needBeverage <- true;
-				color <- #black;
+				if bad = false {
+					color <- #black;	
+				}
 				target <- one_of(InformationCenter);
 			}else if(hunger < 30){
 				write name + " is hungry";
 				needFood <- true;
-				color <- #green;
+				if bad = false{
+					color <- #green;	
+				}
 				target <- one_of(InformationCenter);
 			}else{
 				write name + " is thirsty";
 				needBeverage <- true;
-				color <- #blue;
+				if bad = false{
+					color <- #blue;	
+				}
 				target <- one_of(InformationCenter);
 			}
-			
 		}
+		
 	}
 	
 	reflex moveArround when: target=nil and needFood=false and needBeverage=false{
 		do wander;
+		if rnd(50) > 45 {
+			bad <- true;
+			color <- #red;
+		}
 	}
 	
 //	reflex moveToInformationCenter when: target != nil{
@@ -162,7 +179,7 @@ species Guest skills:[moving]{
 		do goto target: FoodSroteTarget;
 	}
 	
-	reflex ReachTheStoreFood when: !empty(FoodStore at_distance distanceThreshold) {
+	reflex ReachTheStore1 when: !empty(FoodStore at_distance distanceThreshold) {
 		needFood <- false;
 		hunger <- 100.0;
 		FoodSroteTarget <- nil;
@@ -170,7 +187,7 @@ species Guest skills:[moving]{
 		write name + " got food";
 	}
 	
-	reflex ReachTheStoreBeverage when: !empty(BeverageSore at_distance distanceThreshold) {
+	reflex ReachTheStore2 when: !empty(BeverageSore at_distance distanceThreshold) {
 		needBeverage <- false;
 		thirst <- 100.0;
 		BeverageStoreTarget <- nil;
@@ -178,7 +195,7 @@ species Guest skills:[moving]{
 		write name + " got beverage";
 	}
 	
-	reflex ReachTheStoreGeneral when: !empty(GeneralStore at_distance distanceThreshold) {
+	reflex ReachTheStore3 when: !empty(GeneralStore at_distance distanceThreshold) {
 		needBeverage <- false;
 		needFood <- false;
 		thirst <- 100.0;
@@ -201,6 +218,7 @@ species InformationCenter{
 //   list<BeverageSore> BeverageSores <- (BeverageSore at_distance 100);
    list<BeverageSore> BeverageSores;
    list<GeneralStore> GeneralStores;
+   Guest badGuy <- nil;
 	
 	reflex listStoreLocations{
 		ask FoodStore{
@@ -216,6 +234,35 @@ species InformationCenter{
 		}
 	}
 	
+	reflex Secure when: !empty(Guest at_distance 3 ) {
+		ask Guest {
+			if self.bad=true {
+				myself.badGuy <- self;
+			}
+		}
+		if badGuy != nil {
+			ask SecurityGuard {
+					self.target <- myself.badGuy;
+				}
+		}
+	}
+	
+}
+
+species SecurityGuard{
+	Guest target;
+	
+	aspect default{
+		draw sphere(2) color: #purple;
+	}
+	
+	reflex Work when: target != nil{
+		ask target {
+			do die;
+		}
+	}
+	
+
 }
 
 // Food Store implementation
@@ -262,10 +309,7 @@ experiment main type: gui{
 			species InformationCenter;
 			species GeneralStore;
 			species Entrance;
+			species SecurityGuard;
 		}
 	}
 }
-
-	
-
-

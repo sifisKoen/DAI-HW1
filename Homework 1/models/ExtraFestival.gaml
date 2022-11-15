@@ -90,7 +90,7 @@ species Guest skills:[moving]{
 	reflex CountHungryAndThirsty when: needBeverage=false and needFood=false{
 		thirst <- thirst-rnd(4);
 		hunger <- hunger-rnd(4);
-		if(target=nil and (thirst < 30 or hunger<30)){
+		if(thirst < 30 or hunger<30){
 			if (thirst < 30 and hunger < 30 ){
 			    write name + " is hungry and thursty";
 				needFood <- true;
@@ -108,20 +108,21 @@ species Guest skills:[moving]{
 				color <- #blue;
 				target <- one_of(InformationCenter);
 			}
-			
 		}
-	}
-	
-	reflex moveArround when: target=nil and needFood=false and needBeverage=false{
 		do wander;
 	}
+//	
+//	reflex moveArround when: needFood=false and needBeverage=false{
+//		
+//	}
 	
 //	reflex moveToInformationCenter when: target != nil{
 //		do goto target: target;
 ////		.init.InformationCenter.location;
 //	}
 	
-	reflex GoToInfoCenter when: target != nil and BeverageStoreTarget=nil and GeneralStoreTarget=nil and FoodSroteTarget=nil{
+	reflex GoToInfoCenter when: target != nil and 
+			((needBeverage=true and BeverageStoreTarget=nil) or (needFood=true and FoodSroteTarget=nil) or (needFood=true and needBeverage=true and GeneralStoreTarget=nil)){
 		do goto target: target.location;
 	}
 //	
@@ -147,43 +148,43 @@ species Guest skills:[moving]{
 
 	}
 	
-	reflex MoveToBeverageStore when: BeverageStoreTarget != nil{
+	reflex MoveToBeverageStore when: BeverageStoreTarget != nil and needBeverage=true and needFood=false{
 		write "Ready for beverage " + BeverageStoreTarget.location + " " + target;
 		do goto target: BeverageStoreTarget;
 	}
 	
-	reflex MoveToGeneralStore when: GeneralStoreTarget != nil{
+	reflex MoveToGeneralStore when: GeneralStoreTarget != nil and needBeverage=true and needFood=true{
 		write "Ready for everything " + GeneralStoreTarget.location + " " + target;
 		do goto target: GeneralStoreTarget;
 	}
 	
-	reflex MoveToFoodStore when: FoodSroteTarget != nil{
+	reflex MoveToFoodStore when: FoodSroteTarget != nil and needFood=true and needBeverage=false{
 		write "Ready for food " + FoodSroteTarget.location + " " + target;
 		do goto target: FoodSroteTarget;
 	}
 	
-	reflex ReachTheStoreFood when: !empty(FoodStore at_distance distanceThreshold) {
+	reflex ReachTheStoreFood when: !empty(FoodStore at_distance distanceThreshold) and needFood=true and needBeverage=false{
 		needFood <- false;
 		hunger <- 100.0;
-		FoodSroteTarget <- nil;
+//		FoodSroteTarget <- nil;
 		 color <- #pink;
 		write name + " got food";
 	}
 	
-	reflex ReachTheStoreBeverage when: !empty(BeverageSore at_distance distanceThreshold) {
+	reflex ReachTheStoreBeverage when: !empty(BeverageSore at_distance distanceThreshold) and needBeverage=true and needFood=false{
 		needBeverage <- false;
 		thirst <- 100.0;
-		BeverageStoreTarget <- nil;
+//		BeverageStoreTarget <- nil;
 		 color <- #pink;
 		write name + " got beverage";
 	}
 	
-	reflex ReachTheStoreGeneral when: !empty(GeneralStore at_distance distanceThreshold) {
+	reflex ReachTheStoreGeneral when: !empty(GeneralStore at_distance distanceThreshold) and needFood=true and needBeverage=true{
 		needBeverage <- false;
 		needFood <- false;
 		thirst <- 100.0;
 		hunger <- 100.0;
-		GeneralStoreTarget <- nil;
+//		GeneralStoreTarget <- nil;
 		color <- #pink;
 		write name + " got everything";
 	}
