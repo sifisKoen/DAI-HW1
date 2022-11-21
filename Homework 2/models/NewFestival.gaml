@@ -29,7 +29,7 @@ global{
 	
 //	Create a minimun and a maximum starting price for the items
 int SellerMinimunItemPrice <- 20;
-int SellerMaximumItemPrice <- 40;
+int SellerMaximumItemPrice <- 50;
 // Create a minimum and a maximum acceptance price for the guest
 int GuestMinimumAcceptancePrice <- 10;
 int GuestMaximumAcceptancePrice <- 30; 
@@ -98,13 +98,20 @@ species Guests skills:[moving, fipa] {
 //	Selection of a new random item
 	string ItemWantToBuy <- SellersItemsAvailable[rnd(length(SellersItemsAvailable) - 1)];
 	
+//	Whitch is the type of auction the Guest wants to participate
+	string AuctionWantToParticipate <- TypeOfAuction[rnd(length(TypeOfAuction) - 1)];
+	
 //	Create a random accepted price for each Guest so to take place to the auction
-	int GuestAcceptedPrice <- rnd(GuestMinimumAcceptancePrice, GuestMaximumAcceptancePrice); 
+	int  GuestAcceptedPrice <- rnd(GuestMinimumAcceptancePrice, GuestMaximumAcceptancePrice);
 	
 //	Visual aspect
 	aspect default{ 
 		draw sphere(1) at: (location - {2.0, 0.0, -1.5}) color:GuestColor;
 		draw pyramid(2) at: (location - {2.0, 0.0, 0.0}) color:GuestColor;
+		
+		if AuctionWin = true{
+			draw sphere(0.9) at: (location - {0.5, 0.0, -0.8}) color:GuestColor;
+		}
 	}
 	
 //	Moving Reflexes
@@ -130,6 +137,42 @@ species Guests skills:[moving, fipa] {
 	reflex MoveToSeller when: SellerTarget != nil{
 		write "Ready to buy: " + ItemWantToBuy + " going to " + SellerTarget.location;
 	}
+	
+	list<Guests> InterestedGuests;
+	
+	reflex GuestReceivesCfpMessageFromInitiator when: !empty(cfps) {
+		message ProposalFromSeller <- (cfps at 0);
+		
+		if (ProposalFromSeller.contents[0] = "Start" and ProposalFromSeller.contents[1] = ItemWantToBuy and ProposalFromSeller.contents[3] =  AuctionWantToParticipate){
+			write self.name + " want to participate to " + agent(ProposalFromSeller.sender)+ " Auction";
+			GuestColor <- #olive;
+			InterestedGuests <+ self;
+			write "proposal from seller price " + ProposalFromSeller.contents[2];
+			write self.GuestAcceptedPrice;
+		}else if (ProposalFromSeller.contents[0] = "Start" and (ProposalFromSeller.contents[1] != ItemWantToBuy or ProposalFromSeller.contents[3] !=  AuctionWantToParticipate)){
+			do refuse message: ProposalFromSeller contents: ["I don't want to participate"];
+			write "I " + self.name + " don't want to participate to " + ProposalFromSeller.sender + " Auction";
+		}else if (ProposalFromSeller.contents[0] = "Stop"){
+			GuestColor <- #pink;
+		}
+	}
+	
+	
+	reflex GuestReplyToCfpSellersMessagelForDutchAuction when: AuctionWantToParticipate = "Dutch" and !empty(cfps){
+		
+		message ProposalFromSeller <- (cfps at 0);
+		int SellersPrice <- int (ProposalFromSeller.contents[2]);
+		if ( GuestAcceptedPrice < SellersPrice ){		
+			do refuse message: ProposalFromSeller contents: ["I can not buy this"];
+		}else if (GuestAcceptedPrice >= SellersPrice ){
+			do accept_proposal with: (message: ProposalFromSeller, contents: ["I, " + name + ", accept your offer of " + SellersPrice ]);
+//			do start_conversation to: list(Sellers) protocol: 'fipa-propose' performative: 'AcceptProposal' contents: ["I, " + name + ", accept your offer of " + SellersPrice];
+			AuctionWin <- true;
+		}
+	}
+//	
+	
+	
 	
 /** 
  * Colors change depends on what item guest want to buy
@@ -174,18 +217,78 @@ species InformationCenter{
 }
 
 // Creation of Seller
-species Sellers {
+species Sellers skills:[moving, fipa] {
 	
+	bool AnnouncedAnAuction <- false;
+	bool AuctionIsRunning <- false;
+	bool WeHaveAWinner <- false;
+	
+	list<Guests> InterestedGuests;
 	
 	rgb SellerColor <- #grey;
+	
+	
+	string SellingItem <- SellersItemsAvailable[rnd(length(SellersItemsAvailable) - 1)];
+	
+//	A random Auction for the sellers
+	string SellerStartsAuction <- TypeOfAuction[rnd(length(TypeOfAuction) - 1)];
+	
+	int SellerItemPrice <- rnd(SellerMinimunItemPrice, SellerMaximumItemPrice);
 	
 //	Visual aspect
 	aspect default{ 
 		draw sphere(1) at: (location - {2.0, 0.0, -1.5}) color:SellerColor;
-		draw pyramid(2) at: (location - {2.0, 0.0, 0.0}) color:SellerColor;
+		draw pyramid(2) at: (location - {2.0, 0.0, 0.0}) color:SellerColor;	
 		
+		if (SellerStartsAuction = "Dutch" and time >= 10){
+			draw "Seller: " + name + " Starts " + SellerStartsAuction + " Auction and sells " + SellingItem at: location + {0, 0, 0} color: #green font: font("Arial", 10, #bold) perspective: false;
+		}			
 	}
 	 
+//	 The Seller Starts the Auction
+	reflex AuctionStarting when: SellerStartsAuction != nil and AnnouncedAnAuction = false and AuctionIsRunning = false and WeHaveAWinner = false{
+		write  self.name + " " +  self.SellerStartsAuction;
+		
+		if (SellerStartsAuction = "Dutch"){
+			do start_conversation to: list(Guests) protocol: 'fipa-propose' performative: 'cfp' contents: ["Start", SellingItem, SellerItemPrice, SellerStartsAuction];
+			AnnouncedAnAuction <- true;
+			AuctionIsRunning <- true;
+		}
+	}
+	
+	
+//	The Seller receives Reject Message
+	reflex ReceiveRejectCfpMessages when: AuctionIsRunning and !empty(refuse) and SellerStartsAuction = "Dutch"{
+					
+			write name + ' receives reject messages';
+	
+			self.SellerItemPrice <- self.SellerItemPrice - 1;// rnd(1, 2);
+			
+			if(SellerItemPrice < SellerMinimunItemPrice){
+				AuctionIsRunning <- false;
+				AnnouncedAnAuction <- false;
+				cfps <- nil;
+				write name + " price went below minimum value (" + SellerMinimunItemPrice + "). ";
+				do start_conversation to: list(Guests) protocol: 'fipa-propose' performative: 'cfp' contents: ["Stop"];
+//				do refuse message: proposalFromInitiator contents: ['I am busy today'] ;
+			}
+	}
+	
+	
+//	The Seller Receive Accept Message
+	reflex ReceiveAcceptCfpMessages when: AuctionIsRunning and !empty(accept_proposals) and SellerStartsAuction = "Dutch"{
+			write name + ' receives accept messages';
+	
+			loop accepted over: accept_proposals{
+				write name + ' got accepted by ' + accepted.sender + ': ' + accepted.contents;
+				if(WeHaveAWinner = false){
+				do start_conversation to: accepted.sender protocol: 'fipa-propose' performative: 'cfp' contents: ['Winner'];
+				WeHaveAWinner <- true;
+				}
+				
+			}
+//			auctionRunning <- false;
+	}
 	
 	
 }
