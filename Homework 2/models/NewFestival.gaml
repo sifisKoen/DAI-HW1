@@ -143,34 +143,34 @@ species Guests skills:[moving, fipa] {
 	
 	reflex GuestReceivesCfpMessageFromInitiator when: !empty(cfps) {
 		message ProposalFromSeller <- (cfps at 0);
-		write "Proposals" + ProposalFromSeller;
+//		write "Proposals " + ProposalFromSeller;
 		if (ProposalFromSeller.contents[0] = "Start" and ProposalFromSeller.contents[1] = ItemWantToBuy and ProposalFromSeller.contents[3] =  AuctionWantToParticipate){
-			write self.name + " want to participate to " + agent(ProposalFromSeller.sender)+ " Auction";
+			write self.name + " want to participate to " + agent(ProposalFromSeller.sender)+ " Auction with money" + self.GuestAcceptedPrice;
 			GuestColor <- #olive;
 			InterestedGuests <+ self;
-			write "proposal from seller price " + ProposalFromSeller.contents[2];
-			write  self.name + " I have these money " + self.GuestAcceptedPrice;
+//			write "proposal from seller price " + ProposalFromSeller.contents[2];
+//			write  self.name + " I have these money " + self.GuestAcceptedPrice;
+			do GuestReplyToCfpSellersMessagelForDutchAuction (ProposalFromSeller, int (ProposalFromSeller.contents[2]));
 		}else if (ProposalFromSeller.contents[0] = "Start" and (ProposalFromSeller.contents[1] != ItemWantToBuy or ProposalFromSeller.contents[3] !=  AuctionWantToParticipate)){
-			write "Suggested " + ProposalFromSeller.contents[1] + "but I want " + ItemWantToBuy;
+//			write "Suggested " + ProposalFromSeller.contents[1] + "but I want " + ItemWantToBuy;
 			do refuse message: ProposalFromSeller contents: ["I don't want to participate"];
-			write "I " + self.name + " don't want to participate to " + ProposalFromSeller.sender + " Auction";
+//			write "I " + self.name + " don't want to participate to " + ProposalFromSeller.sender + " Auction";
 		}else if (ProposalFromSeller.contents[0] = "Stop"){
+			write "Stopped guest";
 			GuestColor <- #pink;
 		}
 	}
 	
 	
-	reflex GuestReplyToCfpSellersMessagelForDutchAuction when: AuctionWantToParticipate = "Dutch" and !empty(cfps){
+	action GuestReplyToCfpSellersMessagelForDutchAuction (message ProposalFromSeller, int SellersPrice) {
 		
-		message ProposalFromSeller <- (cfps at 0);
-		int SellersPrice <- int (ProposalFromSeller.contents[1]);
-		write ProposalFromSeller.contents;
-		write "The price is: " + SellersPrice;
+//		write ProposalFromSeller.contents;
+//		write "The price is: " + SellersPrice;
 		if ( GuestAcceptedPrice < SellersPrice ){		
 			do refuse message: ProposalFromSeller contents: ["I can not buy this"];
 		}else if (GuestAcceptedPrice >= SellersPrice ){
 			do accept_proposal with: (message: ProposalFromSeller, contents: ["I, " + name + ", accept your offer of " + SellersPrice ]);
-//			write "Accept proposals" + accept_proposal;
+			write self.name + " accepts proposal";
 //			do start_conversation to: list(Sellers) protocol: 'fipa-propose' performative: 'cfp' contents: ["I, " + name + ", accept your offer of " + SellersPrice];
 //			AuctionWin <- true;
 		}
@@ -232,12 +232,12 @@ species Sellers skills:[moving, fipa] {
 	rgb SellerColor <- #grey;
 	
 	
-	string SellingItem <- SellersItemsAvailable[rnd(length(SellersItemsAvailable) - 1)];
+	string SellingItem;
 	
 //	A random Auction for the sellers
 	string SellerStartsAuction <- TypeOfAuction[rnd(length(TypeOfAuction) - 1)];
 	
-	int SellerItemPrice <- rnd(SellerMinimunItemPrice, SellerMaximumItemPrice);
+	int SellerItemPrice;
 	
 //	Visual aspect
 	aspect default{ 
@@ -251,7 +251,10 @@ species Sellers skills:[moving, fipa] {
 	 
 //	 The Seller Starts the Auction
 	reflex AuctionStarting when: SellerStartsAuction != nil and AnnouncedAnAuction = false and AuctionIsRunning = false and WeHaveAWinner = false{
-		write  self.name + " " +  self.SellerStartsAuction;
+		
+		SellingItem <- SellersItemsAvailable[rnd(length(SellersItemsAvailable) - 1)];
+		SellerItemPrice <- rnd(SellerMinimunItemPrice, SellerMaximumItemPrice);
+		write  "Start of the auction: " + self.name + " " +  self.SellerStartsAuction + " " + SellerItemPrice; 
 		
 		if (SellerStartsAuction = "Dutch"){
 			do start_conversation to: list(Guests) protocol: 'fipa-propose' performative: 'cfp' contents: ["Start", SellingItem, SellerItemPrice, SellerStartsAuction];
@@ -282,19 +285,22 @@ species Sellers skills:[moving, fipa] {
 	
 	
 //	The Seller Receive Accept Message
-	reflex ReceiveAcceptCfpMessages when: AuctionIsRunning and !empty(proposes) and SellerStartsAuction = "Dutch"{
+	reflex ReceiveAcceptCfpMessages when: AuctionIsRunning and !empty(accept_proposals) and SellerStartsAuction = "Dutch"{
 			write name + ' receives accept messages';
 			
-			loop accepted over: proposes {
+			loop accepted over: accept_proposals {
 				write name + ' got accepted by ' + accepted.sender + ': ' + accepted.contents;
 				if(WeHaveAWinner = false){
-				write "The winner" + accepted.sender;
-				do accept_proposal message: accepted.sender contents: ["Stop","Winner"];
-				WeHaveAWinner <- true;
+					write "The winner " + accepted.sender;
+					do accept_proposal message: accepted.sender contents: ["Stop","Winner"];
+					do start_conversation to: list(Guests) protocol: 'fipa-propose' performative: 'cfp' contents: ["Stop"];
+					WeHaveAWinner <- true;
+					AuctionIsRunning <- false;
+					AnnouncedAnAuction <- false;
+					write "The auction is finished";
 				}
-				
 			}
-//			auctionRunning <- false;
+			
 	}
 	
 	
