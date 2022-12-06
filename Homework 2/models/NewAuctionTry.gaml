@@ -79,7 +79,7 @@ species Seller skills: [fipa] {
 		SellerItemPrice <- rnd(SellerMinimunItemPrice, SellerMaximumItemPrice);
 		
 		write "\n\n\n/========================================================================================================================/";
-		write  "Start of the auction: I " + self.name + " started and auction type of: " +  self.SellersAuction + ", my Item for selling is: " + SellingItem + " and the price is: " + SellerItemPrice + "\n"; 
+		write  "Start of the auction: I " + self.name + " started an auction type of: " +  self.SellersAuction + ", my Item for selling is: " + SellingItem + " and the price is: " + SellerItemPrice + "\n"; 
 		write '(Time ' + time + '): ' + name + ' sent a public message to all bidders.';
 		
 		if(SellersAuction = "Dutch"){
@@ -235,15 +235,7 @@ species Guests skills: [moving, fipa] {
 				do RefuseReplyToCfpMessage(cfpMessage);
 				
 			}
-			
-			
-			string dummy <- cfpMessage.contents;
-//			if (name = 'Guests0') {
-//				do refuse message: cfpMessage contents:["Too busy to work on this. " + name];
-//			} else {
-//				do propose message: cfpMessage contents:["Proposal from " + name];
-//			}
-			
+			string dummy <- cfpMessage.contents;			
 		}
 	}
 	
@@ -281,9 +273,6 @@ species Guests skills: [moving, fipa] {
 			write "     I want: " + self.AuctionWantToParticipate + " but the seller starts: " + cfpMessage.contents[3];	
 		}
 		write "/========================================================================================================================/";
-		
-		
-		
 		
 	}
 	
